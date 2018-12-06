@@ -44,32 +44,6 @@ function StackedGraph(htmlElement) {
   // Format: [ group1, group2, ... ]
   // For each group: [ [x1, y1], [x2, y2], [x3, y3] ]
   this._dataToDraw = [];
-
-  /**
-   * Update drawing data, but do not update the drawing
-   * @function
-   * @param { boolean } animated  Toggling if the function kick off an animation
-   * @param { number }  timing    Timing in milliseconds
-   */
-  this.updateDrawingData = (animated, timing) => {
-    // Destination
-    // Copy the data array
-    let dest = JSON.parse(JSON.stringify(this._data));
-    // Push the baseline to the first element
-    dest.unshift(new Array(this.dataDimension).fill(null).map((val, i) => this._baseline(i)));
-    // Accumulate
-    for(let i = 1; i < dest.length; i++) dest[i] = dest[i].map((x, j) => x + dest[i-1][j]);
-    // Normalizing
-    let max = Math.max.apply(this, dest.map(arr => Math.max.apply(this, arr)));
-    let min = Math.min.apply(this, dest.map(arr => Math.min.apply(this, arr)));
-    dest = dest.map(arr => arr.map((x, i, arr) => [i/(arr.length-1), (x - min)/(max - min)]));
-    // Commit data changes or kick off animation
-    if(!animated) {
-      this._dataToDraw = dest;
-    } else {
-      this._animatedUpdate(dest, timing);
-    }
-  }
   this._animatedUpdate = (destination, timing) => {
     // Some of the "static" variables are stored in the function object itself
     let self = this._animatedUpdate;
@@ -127,21 +101,8 @@ function StackedGraph(htmlElement) {
     } else { // The animation should be finished, clean up the data to draw
       this._dataToDraw = JSON.parse(JSON.stringify(self.dest));
     }
-  }
-
-
-  // Coordination conversion between local data & svg coordinate
-  this.local2global = (xy) => {
-    let [ w, h ] = [ this._htmlElement.clientWidth, this._htmlElement.clientHeight ];
-    let [ l, r, t, b ] = [ this.padding.left, this.padding.right, this.padding.top, this.padding.bottom ];
-    let [ x, y ] = xy;
-    return [ x*(w-r-l)+l, y*(-h+2*t+b)+h-t-b ];
-  }
-  this.global2local = (xy) => {
-    let [ w, h ] = [ this._htmlElement.clientWidth, this._htmlElement.clientHeight ];
-    let [ l, r, t, b ] = [ this.padding.left, this.padding.right, this.padding.top, this.padding.bottom ];
-    let [ x, y ] = xy;
-    return [ (x-l)/(w-r-l), (y-h+t+b)/(-h+2*t+b) ];
+    // Test only:
+    // console.log(JSON.stringify(this._dataToDraw));
   }
 
   // HTML element
@@ -156,30 +117,84 @@ function StackedGraph(htmlElement) {
   /**  Horizontal axis tag mapping function */
   this.tagMapping = index => '' + index;
 
-  // Inserting SVG
-  this.svgns = 'http://www.w3.org/2000/svg';
+  /** Stacked graph DOM elements */
+  this.stackedGraphDOMs = [];
 
   publicStackedGraph(this);
-  baselineFunctions(this);
   makeHorizontalAxis(this);
   bindResizeFunctions(this);
 }
 
-function baselineFunctions(stackGraph) {
-  stackGraph.zeroBase = index => 0;
-  stackGraph.themeRiver = index => -0.5 * stackGraph._data.map(arr => arr[index]).reduce((a, b) => a + b);
-  stackGraph.wiggle = index => {
-    let dg0 = [];
-    for(let i = 0; i <= index; i++) {
-      dg[i] = stackGraph._dataDiff.map(arr => arr.slice(0, i + 1).reduce((a, b) => a + b))
-        .reduce((a, b) => a + b);
-    }
-    return dg0.reduce((a, b) => a + b);
+StackedGraph.prototype.svgns = 'http://www.w3.org/2000/svg';
+/**
+ * Update drawing data, but do not update the drawing
+ * @function
+ * @param { boolean } animated  Toggling if the function kick off an animation
+ * @param { number }  timing    Timing in milliseconds
+ */
+StackedGraph.prototype.updateDrawingData = function (animated, timing) {
+  // Destination
+  // Copy the data array
+  let dest = JSON.parse(JSON.stringify(this._data));
+  // Push the baseline to the first element
+  dest.unshift(new Array(this.dataDimension).fill(null).map((val, i) => this._baseline(i)));
+  // Accumulate
+  for(let i = 1; i < dest.length; i++) dest[i] = dest[i].map((x, j) => x + dest[i-1][j]);
+  // Normalizing
+  let max = Math.max.apply(this, dest.map(arr => Math.max.apply(this, arr)));
+  let min = Math.min.apply(this, dest.map(arr => Math.min.apply(this, arr)));
+  dest = dest.map(arr => arr.map((x, i, arr) => [i/(arr.length-1), (x - min)/(max - min)]));
+  // Commit data changes or kick off animation
+  if(!animated) {
+    this._dataToDraw = dest;
+  } else {
+    this._animatedUpdate(dest, timing);
   }
 }
 
-function makeHorizontalAxis(stackGraph) {
-  let _this = stackGraph;
+// Coordination conversion between local data & svg coordinate
+/**
+ * Convert local coordinate to global coordinate (relative to the <svg> element)
+ * @function
+ * @param { number[] } xy   Local coordinate
+ */
+StackedGraph.prototype.local2global = function (xy) {
+  let [ w, h ] = [ this._htmlElement.clientWidth, this._htmlElement.clientHeight ];
+  let [ l, r, t, b ] = [ this.padding.left, this.padding.right, this.padding.top, this.padding.bottom ];
+  let [ x, y ] = xy;
+  return [ x*(w-r-l)+l, y*(-h+2*t+b)+h-t-b ];
+}
+/**
+ * Convert global coordinate to noramalized local coordinate
+ * @function
+ * @param { number[] } xy   Global coordinate
+ */
+StackedGraph.prototype.global2local = function (xy) {
+  let [ w, h ] = [ this._htmlElement.clientWidth, this._htmlElement.clientHeight ];
+  let [ l, r, t, b ] = [ this.padding.left, this.padding.right, this.padding.top, this.padding.bottom ];
+  let [ x, y ] = xy;
+  return [ (x-l)/(w-r-l), (y-h+t+b)/(-h+2*t+b) ];
+}
+
+// A few baseline functions
+StackedGraph.prototype.zeroBase = function(index) { return 0; };
+StackedGraph.prototype.themeRiver = function(index) { return -0.5 * this._data.map(arr => arr[index]).reduce((a, b) => a + b); };
+StackedGraph.prototype.wiggle = function(index) {
+  let dg0 = [];
+  for(let i = 0; i <= index; i++) {
+    dg[i] = this._dataDiff.map(arr => arr.slice(0, i + 1).reduce((a, b) => a + b))
+      .reduce((a, b) => a + b);
+  }
+  return dg0.reduce((a, b) => a + b);
+}
+
+/** Update the drawing */
+StackedGraph.prototype.drawStacked = function() {
+
+}
+
+function makeHorizontalAxis(stackedGraph) {
+  let _this = stackedGraph;
   // Horizontal axis line
   _this.horizontalAxis = document.createElementNS(_this.svgns, 'line');
   // Resize behavior
@@ -237,28 +252,27 @@ function makeHorizontalAxis(stackGraph) {
   }
 }
 
-function bindResizeFunctions(stackGraph) {
+function bindResizeFunctions(stackedGraph) {
   ['horizontalAxis', 'horizontalGrads'].map(prop => {
-    window.addEventListener('resize', stackGraph[prop].resize);
-    stackGraph[prop].resize();
+    window.addEventListener('resize', stackedGraph[prop].resize);
+    stackedGraph[prop].resize();
   });
 }
 
 // This function defines the public getter/setter of the class
-function publicStackedGraph(stackGraph) {
-  Object.defineProperty(stackGraph, 'htmlElement', {
-    get: () => stackGraph._htmlElement
+function publicStackedGraph(stackedGraph) {
+  Object.defineProperty(stackedGraph, 'htmlElement', {
+    get: () => stackedGraph._htmlElement
   });
-  Object.defineProperty(stackGraph, 'data', {
-    get: () => stackGraph._data,
-    set: newVal => { stackGraph._data = newVal; stackGraph.updateDiff(); }
+  Object.defineProperty(stackedGraph, 'data', {
+    get: () => stackedGraph._data,
+    set: newVal => { stackedGraph._data = newVal; stackedGraph.updateDiff(); }
   });
-  Object.defineProperty(stackGraph, 'dataDimension', {
-    get: () => stackGraph._data[0] ? stackGraph._data[0].length : 0 
+  Object.defineProperty(stackedGraph, 'dataDimension', {
+    get: () => stackedGraph._data[0] ? stackedGraph._data[0].length : 0 
   });
-
 }
 
 window.addEventListener('load', event => {
-  window.stackGraph = new StackedGraph('stacked');
+  window.stackedGraph = new StackedGraph('stacked');
 });
