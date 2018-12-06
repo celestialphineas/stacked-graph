@@ -253,6 +253,8 @@ function makeHorizontalAxis(stackedGraph) {
       step = Math.ceil(step/100) * 100;
     } else if(_this.dataDimension > 50) {
       step = Math.ceil(step/10) * 10;
+    } else if(_this.dataDimension > 25) {
+      step = Math.ceil(step/5) * 5;
     }
     for(let i = 0; i < n; i++) {
       let grad = document.createElementNS(_this.svgns, 'line');
