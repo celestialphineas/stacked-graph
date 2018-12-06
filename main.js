@@ -23,8 +23,8 @@ function StackedGraph(htmlElement) {
   // For each group:
   // [ x1, x2, x3, x4, ... ]
   this._data = [
-    new Array(10).fill(null).map((val, i) => Math.sin(i/20)),
-    new Array(10).fill(null).map((val, i) => 1.2*Math.cos(i/23))
+    new Array(10).fill(null).map((val, i) => Math.sin(i/2) + 1),
+    new Array(10).fill(null).map((val, i) => 1.2*(Math.cos(i/3)+1))
   ];
   // Differential of the data
   this._dataDiff = [];
@@ -101,6 +101,8 @@ function StackedGraph(htmlElement) {
     } else { // The animation should be finished, clean up the data to draw
       this._dataToDraw = JSON.parse(JSON.stringify(self.dest));
     }
+    // Draw!
+    this.drawStacked();
     // Test only:
     // console.log(JSON.stringify(this._dataToDraw));
   }
@@ -109,6 +111,8 @@ function StackedGraph(htmlElement) {
   this._htmlElement = htmlElement;
   /** Padding of the coordinate area */
   this.padding = { left: 20, right: 20, top: 10, bottom: 32 };
+  /** Colors in use */
+  this.colors = [ '#EB7AA77', '#FFB11B', '#86C166' ];
   /** Graduation spacing */
   this.gradSpacing = 100;
   /** Graduation line height */
@@ -147,6 +151,7 @@ StackedGraph.prototype.updateDrawingData = function (animated, timing) {
   // Commit data changes or kick off animation
   if(!animated) {
     this._dataToDraw = dest;
+    this.drawStacked();
   } else {
     this._animatedUpdate(dest, timing);
   }
@@ -192,6 +197,24 @@ StackedGraph.prototype.wiggle = function(index) {
 StackedGraph.prototype.drawStacked = function() {
   // TODO: Finish this part
   // Remove the drawn elements
+  this.stackedGraphDOMs.forEach(element => this._htmlElement.removeChild(element));
+  this.stackedGraphDOMs.splice(0, this.stackedGraphDOMs.length);
+  
+  let getColor = index => this.colors[ (index - 1) % this.colors.length ];
+  // Draw the data to draw
+  for(let i = 1; i < this._dataToDraw.length; i++) {
+    let polygon = document.createElementNS(this.svgns, 'polygon');
+    let data = this._dataToDraw[i].map(point => this.local2global(point));
+    let data0 = this._dataToDraw[i - 1].map(point => this.local2global(point));
+    let points = data.map(point => '' + Math.round(point[0]) + ',' + Math.round(point[1])).reduce((a, b) => a + ' ' + b);
+    points += ' ' + data0.map(point => '' + Math.round(point[0]) + ',' + Math.round(point[1])).reduceRight((a, b) => a + ' ' + b);
+    polygon.setAttribute('points', points);
+    polygon.style.fill = getColor(i);
+    polygon.classList.add('stacked-polygon');
+    // Add polygon to the view
+    this.stackedGraphDOMs.push(polygon);
+    this._htmlElement.appendChild(polygon);
+  }
 }
 
 function makeHorizontalAxis(stackedGraph) {
