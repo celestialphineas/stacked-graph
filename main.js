@@ -40,7 +40,7 @@ function StackedGraph(htmlElement) {
     });
   }
 
-  // X range: 0-1, Y range: unscaled
+  // X range: 0-1, Y range: 0-1
   // Format: [ group1, group2, ... ]
   // For each group: [ [x1, y1], [x2, y2], [x3, y3] ]
   this._dataToDraw = [];
@@ -52,8 +52,66 @@ function StackedGraph(htmlElement) {
    * @param { number }  timing    Timing in milliseconds
    */
   this.updateDrawingData = (animated, timing) => {
-    // TODO: Finish this part, note that the kicked-off function & this function should be seperated
-    // (This function might be called when an animation is not yet finished)
+    // Destination
+    // Copy the data array
+    let dest = JSON.parse(JSON.stringify(this._data));
+    // Push the baseline to the first element
+    dest.unshift(new Array(this.dataDimension).fill(null).map((val, i) => this._baseline(i)));
+    // Accumulate
+    for(let i = 1; i < dest.length; i++) dest[i] = dest[i].map((x, j) => x + dest[i-1][j]);
+    // Normalizing
+    let max = Math.max(dest.map(arr => Math.max(arr)));
+    let min = Math.min(dest.map(arr => Math.min(arr)));
+    dest = dest.map(arr => arr.map((x, i, arr) => [i/(arr.length-1), (x - min)/(max - min)]));
+    // Commit data changes or kick off animation
+    if(!animated) {
+      this._dataToDraw = dest;
+    } else {
+      this._animatedUpdate(dest, timing);
+    }
+  }
+  this._animatedUpdate = (destination, timing) => {
+    // Some of the "static" variables are stored in the function object itself
+    let self = this._animatedUpdate;
+    // Preparing for the animation
+    if(timing) {
+      self.dest = destination;
+      self.startTimestamp = new Date().valueOf();
+      self.timing = timing;
+      // Increase the dimensions
+      let n = destination.length - this._dataToDraw.length;
+      for(let i = 0; i < n; i++) {
+        let toUnshift = (this._dataToDraw[0] || []).slice();
+        this._dataToDraw.unshift(toUnshift);
+      }
+      let srcDim = this._dataToDraw[0] ? this._dataToDraw[0].length : 0;
+      let dstDim = destination[0] ? destination[0].length : 0;
+
+      this._dataToDraw.forEach(arr => {
+        console.log(dstDim - srcDim);
+        for(let i = 0; i < dstDim - srcDim; i++) {
+          let toPush = (arr[arr.length - 1] || [0, 0.5]).slice();
+          arr.push(toPush);
+        }
+      });
+
+      this._dataToDraw.forEach(arr => {
+        arr.forEach((coord, i, arr) => coord[0] = i/(arr.length-1));
+      });
+    }
+    // It is made sure that the dimension of _dataToDraw is larger than destination
+    let nowTimestamp = new Date().valueOf();
+    // Normalized progress
+    let progress = (nowTimestamp - self.startTimestamp)/self.timing;
+    // Quadratic smooth animation
+    progress = 1 - (1 - progress) * (1 - progress);
+    // TODO: Calculate the new data to draw
+
+    if(nowTimestamp - self.startTimestamp <= self.timing) {
+      setTimeout(this._animatedUpdate, 20);
+    } else {
+      // TODO: Eliminating
+    }
   }
 
 
@@ -74,8 +132,8 @@ function StackedGraph(htmlElement) {
   // Inserting SVG
   this.svgns = 'http://www.w3.org/2000/svg';
 
-  baselineFunctions(this);
   publicStackedGraph(this);
+  baselineFunctions(this);
   makeHorizontalAxis(this);
   bindResizeFunctions(this);
 }
@@ -175,5 +233,5 @@ function publicStackedGraph(stackGraph) {
 }
 
 window.addEventListener('load', event => {
-  let stackGraph = new StackedGraph('stacked');
+  window.stackGraph = new StackedGraph('stacked');
 });
