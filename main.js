@@ -112,7 +112,7 @@ function StackedGraph(htmlElement) {
   /** Padding of the coordinate area */
   this.padding = { left: 20, right: 20, top: 10, bottom: 32 };
   /** Colors in use */
-  this.colors = [ '#EB7AA77', '#FFB11B', '#86C166' ];
+  this.colors = [ '#EB7A77', '#FFB11B', '#86C166' ];
   /** Graduation spacing */
   this.gradSpacing = 100;
   /** Graduation line height */
