@@ -140,6 +140,8 @@ StackedGraph.prototype.updateDrawingData = function (animated, timing) {
   // Destination
   // Copy the data array
   let dest = JSON.parse(JSON.stringify(this._data));
+  // Compute differentials
+  this.updateDiff();
   // Push the baseline to the first element
   dest.unshift(new Array(this.dataDimension).fill(null).map((val, i) => this._baseline(i)));
   // Accumulate
@@ -187,7 +189,7 @@ StackedGraph.prototype.themeRiver = function(index) { return -0.5 * this._data.m
 StackedGraph.prototype.wiggle = function(index) {
   let dg0 = [];
   for(let i = 0; i <= index; i++) {
-    dg[i] = this._dataDiff.map(arr => arr.slice(0, i + 1).reduce((a, b) => a + b))
+    dg0[i] = this._dataDiff.map(arr => arr.slice(0, i + 1).reduce((a, b) => a + b))
       .reduce((a, b) => a + b);
   }
   return dg0.reduce((a, b) => a + b);
