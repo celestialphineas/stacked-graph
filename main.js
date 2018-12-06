@@ -190,7 +190,8 @@ StackedGraph.prototype.wiggle = function(index) {
 
 /** Update the drawing */
 StackedGraph.prototype.drawStacked = function() {
-
+  // TODO: Finish this part
+  // Remove the drawn elements
 }
 
 function makeHorizontalAxis(stackedGraph) {
