@@ -23,8 +23,9 @@ function StackedGraph(htmlElement) {
   // For each group:
   // [ x1, x2, x3, x4, ... ]
   this._data = [
-    new Array(10).fill(null).map((val, i) => Math.sin(i/2) + 1),
-    new Array(10).fill(null).map((val, i) => 1.2*(Math.cos(i/3)+1))
+    new Array(50).fill(null).map((val, i) => Math.sin(i/8.6) + 1),
+    new Array(50).fill(null).map((val, i) => 1.2*(Math.cos(i/15.2) + Math.sin(i/1.2)/3 + 1.6)),
+    new Array(50).fill(null).map((val, i) => 1.2*(Math.cos(i/4.2) + Math.sin(i/2)/10 + 1.6))
   ];
   // Differential of the data
   this._dataDiff = [];
@@ -112,7 +113,7 @@ function StackedGraph(htmlElement) {
   /** Padding of the coordinate area */
   this.padding = { left: 20, right: 20, top: 10, bottom: 32 };
   /** Colors in use */
-  this.colors = [ '#EB7A77', '#FFB11B', '#86C166' ];
+  this.colors = [ '#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', '#ffd92f' ];
   /** Graduation spacing */
   this.gradSpacing = 100;
   /** Graduation line height */
@@ -124,9 +125,10 @@ function StackedGraph(htmlElement) {
   /** Stacked graph DOM elements */
   this.stackedGraphDOMs = [];
 
+  // This function defines the public getter/setter of the class
   publicStackedGraph(this);
   makeHorizontalAxis(this);
-  bindResizeFunctions(this);
+  bindResizeBehaviors(this);
 }
 
 StackedGraph.prototype.svgns = 'http://www.w3.org/2000/svg';
@@ -136,7 +138,7 @@ StackedGraph.prototype.svgns = 'http://www.w3.org/2000/svg';
  * @param { boolean } animated  Toggling if the function kick off an animation
  * @param { number }  timing    Timing in milliseconds
  */
-StackedGraph.prototype.updateDrawingData = function (animated, timing) {
+StackedGraph.prototype.updateDrawing = function (animated, timing) {
   // Destination
   // Copy the data array
   let dest = JSON.parse(JSON.stringify(this._data));
@@ -190,14 +192,13 @@ StackedGraph.prototype.wiggle = function(index) {
   let dg0 = [];
   for(let i = 0; i <= index; i++) {
     dg0[i] = this._dataDiff.map(arr => arr.slice(0, i + 1).reduce((a, b) => a + b))
-      .reduce((a, b) => a + b);
+      .reduce((a, b) => a + b)/(-this.dataDimension || 1);
   }
   return dg0.reduce((a, b) => a + b);
 }
 
 /** Update the drawing */
 StackedGraph.prototype.drawStacked = function() {
-  // TODO: Finish this part
   // Remove the drawn elements
   this.stackedGraphDOMs.forEach(element => this._htmlElement.removeChild(element));
   this.stackedGraphDOMs.splice(0, this.stackedGraphDOMs.length);
@@ -278,7 +279,7 @@ function makeHorizontalAxis(stackedGraph) {
   }
 }
 
-function bindResizeFunctions(stackedGraph) {
+function bindResizeBehaviors(stackedGraph) {
   ['horizontalAxis', 'horizontalGrads'].map(prop => {
     window.addEventListener('resize', stackedGraph[prop].resize);
     stackedGraph[prop].resize();
