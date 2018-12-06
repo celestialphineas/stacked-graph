@@ -60,8 +60,8 @@ function StackedGraph(htmlElement) {
     // Accumulate
     for(let i = 1; i < dest.length; i++) dest[i] = dest[i].map((x, j) => x + dest[i-1][j]);
     // Normalizing
-    let max = Math.max(dest.map(arr => Math.max(arr)));
-    let min = Math.min(dest.map(arr => Math.min(arr)));
+    let max = Math.max.apply(this, dest.map(arr => Math.max.apply(this, arr)));
+    let min = Math.min.apply(this, dest.map(arr => Math.min.apply(this, arr)));
     dest = dest.map(arr => arr.map((x, i, arr) => [i/(arr.length-1), (x - min)/(max - min)]));
     // Commit data changes or kick off animation
     if(!animated) {
@@ -88,7 +88,6 @@ function StackedGraph(htmlElement) {
       let dstDim = destination[0] ? destination[0].length : 0;
 
       this._dataToDraw.forEach(arr => {
-        console.log(dstDim - srcDim);
         for(let i = 0; i < dstDim - srcDim; i++) {
           let toPush = (arr[arr.length - 1] || [0, 0.5]).slice();
           arr.push(toPush);
@@ -98,6 +97,8 @@ function StackedGraph(htmlElement) {
       this._dataToDraw.forEach(arr => {
         arr.forEach((coord, i, arr) => coord[0] = i/(arr.length-1));
       });
+      
+      self.fromData = this._dataToDraw;
     }
     // It is made sure that the dimension of _dataToDraw is larger than destination
     let nowTimestamp = new Date().valueOf();
@@ -105,17 +106,43 @@ function StackedGraph(htmlElement) {
     let progress = (nowTimestamp - self.startTimestamp)/self.timing;
     // Quadratic smooth animation
     progress = 1 - (1 - progress) * (1 - progress);
-    // TODO: Calculate the new data to draw
+    // Calculate the new data to draw
+    this._dataToDraw = self.fromData.map((arr, index) => {
+      if(self.dest.length === 0) {
+        return arr.map(coord => [ coord[0] * (1 - progress), coord[1] * (1 - progress) ]);
+      }
+      
+      let i = index < self.dest.length ? index : self.dest.length - 1;
+      return arr.map((coord, j) => {
+        let m = (self.dest[0] || []).length;
+        let [ x, y ] = coord;
+        let destX = j < m ? self.dest[i][j][0] : self.dest[i][m-1][0];
+        let destY = j < m ? self.dest[i][j][1] : self.dest[i][m-1][1];
+        return [ x * (1-progress) + destX * progress, y * (1-progress) + destY * progress ];
+      });
+    })
 
     if(nowTimestamp - self.startTimestamp <= self.timing) {
       setTimeout(this._animatedUpdate, 20);
-    } else {
-      // TODO: Eliminating
+    } else { // The animation should be finished, clean up the data to draw
+      this._dataToDraw = JSON.parse(JSON.stringify(self.dest));
     }
   }
 
 
-  // TODO: Coordination conversion between local data & svg coordinate
+  // Coordination conversion between local data & svg coordinate
+  this.local2global = (xy) => {
+    let [ w, h ] = [ this._htmlElement.clientWidth, this._htmlElement.clientHeight ];
+    let [ l, r, t, b ] = [ this.padding.left, this.padding.right, this.padding.top, this.padding.bottom ];
+    let [ x, y ] = xy;
+    return [ x*(w-r-l)+l, y*(-h+2*t+b)+h-t-b ];
+  }
+  this.global2local = (xy) => {
+    let [ w, h ] = [ this._htmlElement.clientWidth, this._htmlElement.clientHeight ];
+    let [ l, r, t, b ] = [ this.padding.left, this.padding.right, this.padding.top, this.padding.bottom ];
+    let [ x, y ] = xy;
+    return [ (x-l)/(w-r-l), (y-h+t+b)/(-h+2*t+b) ];
+  }
 
   // HTML element
   this._htmlElement = htmlElement;
