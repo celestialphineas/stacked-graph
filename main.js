@@ -17,19 +17,20 @@ function StackedGraph(htmlElement) {
 
   // Private properties
   // Baseline function
-  this._baseline = index => 0;
+  this._baseline = this.themeRiver;
   // Data representation
   // [ group1, group2, group3, ... ]
   // For each group:
   // [ x1, x2, x3, x4, ... ]
+  // The _data array must be non-empty
   this._data = [
-    new Array(50).fill(null).map((val, i) => Math.sin(i/8.6) + 1),
     new Array(50).fill(null).map((val, i) => 1.2*(Math.cos(i/15.2) + Math.sin(i/1.2)/3 + 1.6)),
+    new Array(50).fill(null).map((val, i) => Math.sin(i/8.6) + 1),
     new Array(50).fill(null).map((val, i) => 1.2*(Math.cos(i/4.2) + Math.sin(i/2)/10 + 1.6))
   ];
   // Differential of the data
   this._dataDiff = [];
-  this.updateDiff = () => {
+  this._updateDiff = () => {
     this._dataDiff = this._data.map(arr => {
       if(arr.length <= 1) return arr.map(x => 0);
       let result = [];
@@ -70,7 +71,7 @@ function StackedGraph(htmlElement) {
       });
 
       this._dataToDraw.forEach(arr => {
-        arr.forEach((coord, i, arr) => coord[0] = i/(arr.length-1));
+        arr.forEach((coord, i, arr) => coord[0] = i/(arr.length-1) || 0);
       });
       
       self.fromData = this._dataToDraw;
@@ -78,7 +79,7 @@ function StackedGraph(htmlElement) {
     // It is made sure that the dimension of _dataToDraw is larger than destination
     let nowTimestamp = new Date().valueOf();
     // Normalized progress
-    let progress = (nowTimestamp - self.startTimestamp)/self.timing;
+    let progress = (nowTimestamp - self.startTimestamp)/self.timing || 0;
     // Quadratic smooth animation
     progress = 1 - (1 - progress) * (1 - progress);
     // Calculate the new data to draw
@@ -118,6 +119,8 @@ function StackedGraph(htmlElement) {
   this.gradSpacing = 100;
   /** Graduation line height */
   this.gradHeight = 8;
+  /** Default animation timing in seconds */
+  this.animationTiming = 1000;
 
   /**  Horizontal axis tag mapping function */
   this.tagMapping = index => '' + index;
@@ -142,8 +145,6 @@ StackedGraph.prototype.updateDrawing = function (animated, timing) {
   // Destination
   // Copy the data array
   let dest = JSON.parse(JSON.stringify(this._data));
-  // Compute differentials
-  this.updateDiff();
   // Push the baseline to the first element
   dest.unshift(new Array(this.dataDimension).fill(null).map((val, i) => this._baseline(i)));
   // Accumulate
@@ -151,7 +152,7 @@ StackedGraph.prototype.updateDrawing = function (animated, timing) {
   // Normalizing
   let max = Math.max.apply(this, dest.map(arr => Math.max.apply(this, arr)));
   let min = Math.min.apply(this, dest.map(arr => Math.min.apply(this, arr)));
-  dest = dest.map(arr => arr.map((x, i, arr) => [i/(arr.length-1), (x - min)/(max - min)]));
+  dest = dest.map(arr => arr.map((x, i, arr) => [i/(arr.length-1) || 0, (x - min)/(max - min) || 0]));
   // Commit data changes or kick off animation
   if(!animated) {
     this._dataToDraw = dest;
@@ -182,19 +183,36 @@ StackedGraph.prototype.global2local = function (xy) {
   let [ w, h ] = [ this._htmlElement.clientWidth, this._htmlElement.clientHeight ];
   let [ l, r, t, b ] = [ this.padding.left, this.padding.right, this.padding.top, this.padding.bottom ];
   let [ x, y ] = xy;
-  return [ (x-l)/(w-r-l), (y-h+t+b)/(-h+2*t+b) ];
+  return [ (x-l)/(w-r-l) || 0, (y-h+t+b)/(-h+2*t+b) || 0 ];
 }
 
 // A few baseline functions
 StackedGraph.prototype.zeroBase = function(index) { return 0; };
 StackedGraph.prototype.themeRiver = function(index) { return -0.5 * this._data.map(arr => arr[index]).reduce((a, b) => a + b); };
 StackedGraph.prototype.wiggle = function(index) {
-  let dg0 = [];
-  for(let i = 0; i <= index; i++) {
-    dg0[i] = this._dataDiff.map(arr => arr.slice(0, i + 1).reduce((a, b) => a + b))
-      .reduce((a, b) => a + b)/(-this.dataDimension || 1);
+  if(!(this._dataDiff || []).length) this._updateDiff(); 
+  var dg0 = this.wiggle.dg0;
+  if(this.wiggle.data !== this._data) {
+    this.wiggle.data = this._data;
+    dg0 = this.wiggle.dg0 = this._dataDiff.map((arr, i, _dataDiff) => 
+      arr.map(val => -val*(_dataDiff.length-i)))
+        .reduce((a, b) => a.map((val, i) => val + b[i]));
   }
-  return dg0.reduce((a, b) => a + b);
+  return dg0.slice(0, index + 1).reduce((a, b) => a + b)/((this._data.length + 1) || 1);
+}
+StackedGraph.prototype.weightedWiggle = function(index) {
+  if(!this._dataDiff.length) this._updateDiff();
+  var dg0 = this.weightedWiggle.dg0;
+  if(this._data !== this.weightedWiggle.data) {
+    this.weightedWiggle.data = this._data;
+    let sfi = this._data.reduce((a, b) => a.map((val, i) => val + b[i]));
+    dg0 = this.weightedWiggle.dg0 = this._dataDiff.map((dfi, i, _dataDiff) => {
+      let sdfj = _dataDiff.slice(0, i + 1).reduce((a, b) => a.map((val, i) => val + b[i]));
+      let fi = this._data[i];
+      return sdfj.map((val, i) => (val - dfi[i]/2)*fi[i]);
+    }).reduce((a, b) => a.map((val, i) => val + b[i])).map((val, i) => -val/sfi[i]);
+  }
+  return dg0.slice(0, index + 1).reduce((a, b) => a + b);
 }
 
 /** Update the drawing */
@@ -203,7 +221,7 @@ StackedGraph.prototype.drawStacked = function() {
   this.stackedGraphDOMs.forEach(element => this._htmlElement.removeChild(element));
   this.stackedGraphDOMs.splice(0, this.stackedGraphDOMs.length);
   
-  let getColor = index => this.colors[ (index - 1) % this.colors.length ];
+  let getColor = index => this.colors[ (index - 1) % this.colors.length ] || '#000000';
   // Draw the data to draw
   for(let i = 1; i < this._dataToDraw.length; i++) {
     let polygon = document.createElementNS(this.svgns, 'polygon');
@@ -213,7 +231,25 @@ StackedGraph.prototype.drawStacked = function() {
     points += ' ' + data0.map(point => '' + Math.round(point[0]) + ',' + Math.round(point[1])).reduceRight((a, b) => a + ' ' + b);
     polygon.setAttribute('points', points);
     polygon.style.fill = getColor(i);
-    polygon.classList.add('stacked-polygon');
+    polygon.classList.add('stacked-polygon', 'stacked-' + (i - 1));
+    let wrapEvent = event => {
+      let detail = event;
+      event.stackedIndex = i - 1;
+      let clientX   = event.clientX || event.touches[0].clientX;
+      let relativeX = (clientX - this.padding.left)/(this._htmlElement.clientWidth - this.padding.left - this.padding.right) || 0;
+      let dataIndex = Math.round(relativeX * (this.dataDimension - 1));
+      event.dataIndex   = dataIndex;
+      event.stackedData = this._data[i-1][dataIndex];
+      let newEvent = new CustomEvent('stacked-' + event.type, { detail });
+      this._htmlElement.dispatchEvent(newEvent);
+    };
+    // Binding events
+    [ 'mousedown', 'mouseenter', 'mouseleave', 'mousemove',
+      'mouseout', 'mouseover', 'mouseup', 'mousewheel',
+      'touchstart', 'touchend', 'touchcancel', 'touchmove' ].forEach(eventType => {
+        let eventHandler = event => wrapEvent(event);
+        polygon.addEventListener(eventType, eventHandler);
+    });
     // Add polygon to the view
     this.stackedGraphDOMs.push(polygon);
     this._htmlElement.appendChild(polygon);
@@ -247,8 +283,8 @@ function makeHorizontalAxis(stackedGraph) {
     _this.horizontalGradTags.splice(0, _this.horizontalGradTags.length);
     let [ left, right, bottom ] = [ _this.padding.left, _this.padding.right, _this.padding.bottom ];
     let [ width, height ] = [ _this._htmlElement.clientWidth, _this._htmlElement.clientHeight ];
-    let n = Math.ceil((width - left - right)/_this.gradSpacing);
-    let step = Math.ceil(_this.dataDimension/n);
+    let n = Math.ceil((width - left - right)/_this.gradSpacing || 0);
+    let step = Math.ceil(_this.dataDimension/n || 0);
     if(_this.dataDimension > 500) {
       step = Math.ceil(step/100) * 100;
     } else if(_this.dataDimension > 50) {
@@ -258,7 +294,7 @@ function makeHorizontalAxis(stackedGraph) {
     }
     for(let i = 0; i < n; i++) {
       let grad = document.createElementNS(_this.svgns, 'line');
-      let stepLength = (width - left - right) / _this.dataDimension * step;
+      let stepLength = (width - left - right) / _this.dataDimension * step || 0;
       grad.setAttribute('x1', left + i * stepLength);
       grad.setAttribute('x2', left + i * stepLength);
       grad.setAttribute('y1', height - bottom - _this.gradHeight);
@@ -286,6 +322,7 @@ function bindResizeBehaviors(stackedGraph) {
     window.addEventListener('resize', stackedGraph[prop].resize);
     stackedGraph[prop].resize();
   });
+  window.addEventListener('resize', event => stackedGraph.updateDrawing());
 }
 
 // This function defines the public getter/setter of the class
@@ -295,13 +332,43 @@ function publicStackedGraph(stackedGraph) {
   });
   Object.defineProperty(stackedGraph, 'data', {
     get: () => stackedGraph._data,
-    set: newVal => { stackedGraph._data = newVal; stackedGraph.updateDiff(); }
+    set: newVal => {
+      if(!newVal.length) { stackedGraph._data = [[0, 0]]; console.log(stackedGraph._data) }
+      else stackedGraph._data = newVal;
+      stackedGraph._updateDiff();
+      stackedGraph.updateDrawing(true, stackedGraph.animationTiming);
+    }
   });
   Object.defineProperty(stackedGraph, 'dataDimension', {
     get: () => stackedGraph._data[0] ? stackedGraph._data[0].length : 0 
   });
+  Object.defineProperty(stackedGraph, 'baseline', {
+    set: newVal => {
+      switch(newVal.toLowerCase()) {
+        case 'theme': case 'themeriver': stackedGraph._baseline = stackedGraph.themeRiver; break;
+        case 'wiggle': stackedGraph._baseline = stackedGraph.wiggle; break;
+        case 'weighted': case 'weightedwiggle': stackedGraph._baseline = stackedGraph.weightedWiggle; break;
+        case 'zero': case 'default': default: stackedGraph._baseline = stackedGraph.zeroBase; break;
+      }
+      stackedGraph.updateDrawing(true, stackedGraph.animationTiming);
+    }
+  });
 }
 
+// CustomEvent polyfill
+(function () {
+  if ( typeof window.CustomEvent === "function" ) return false;
+  function CustomEvent ( event, params ) {
+    params = params || { bubbles: false, cancelable: false, detail: undefined };
+    var evt = document.createEvent( 'CustomEvent' );
+    evt.initCustomEvent( event, params.bubbles, params.cancelable, params.detail );
+    return evt;
+   }
+  CustomEvent.prototype = window.Event.prototype;
+  window.CustomEvent = CustomEvent;
+})();
+
 window.addEventListener('load', event => {
-  window.stackedGraph = new StackedGraph('stacked');
+  let stackedGraph = window.stackedGraph = new StackedGraph('stacked');
+  stackedGraph.updateDrawing(true, stackedGraph.animationTiming);
 });
