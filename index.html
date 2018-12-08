@@ -158,13 +158,13 @@ button {
       <button onclick="updateData(false)">更新</button>
       <button onclick="updateData(true)">变换数据长度更新</button>
     </div>
-    <p>main.js 可以当成一个独立的库来使用，下面我会简单介绍一下如何对它编程（API）。</p>
+    <p>main.js 可以当成一个独立的库来使用，下面我会简单介绍一下它的接口。</p>
   </div>
   <script type="text/javascript" src="main.js"></script>
   <script>
 window.addEventListener('load', event => {
   let stackedGraph = window.stackedGraph = new StackedGraph('stacked');
-  let dataTitles = ['项目A', '项目B', '项目C', '项目D', '项目E'];
+  let dataTitles = ['项目A', '项目B', '项目C', '项目D', '项目E', '项目F'];
   stackedGraph.updateDrawing(true, stackedGraph.animationTiming);
 
   let labelDOM = document.createElement('div');
