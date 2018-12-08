@@ -115,7 +115,7 @@ function StackedGraph(htmlElement) {
   /** Padding of the coordinate area */
   this.padding = { left: 20, right: 20, top: 10, bottom: 32 };
   /** Colors in use */
-  this.colors = [ '#66c2a5', '#fc8d62', '#8da0cb', '#e78ac3', '#a6d854', '#ffd92f' ];
+  this.colors = [ '#0089A7', '#3AA8C0', '#49D5EE', '#00748D' ];
   /** Graduation spacing */
   this.gradSpacing = 100;
   /** Graduation line height */
@@ -161,6 +161,7 @@ StackedGraph.prototype.updateDrawing = function (animated, timing) {
   } else {
     this._animatedUpdate(dest, timing);
   }
+  this.horizontalGrads.resize();
 }
 
 // Coordination conversion between local data & svg coordinate
@@ -234,20 +235,23 @@ StackedGraph.prototype.drawStacked = function() {
     let polygon = document.createElementNS(this.svgns, 'polygon');
     let data = this._dataToDraw[i].map(point => this.local2global(point));
     let data0 = this._dataToDraw[i - 1].map(point => this.local2global(point));
-    let points = data.map(point => '' + Math.round(point[0]) + ',' + Math.round(point[1])).reduce((a, b) => a + ' ' + b);
-    points += ' ' + data0.map(point => '' + Math.round(point[0]) + ',' + Math.round(point[1])).reduceRight((a, b) => a + ' ' + b);
+    let points = data.map(point => '' + point[0] + ',' + point[1]).reduce((a, b) => a + ' ' + b);
+    points += ' ' + data0.map(point => '' + point[0] + ',' + point[1]).reduceRight((a, b) => a + ' ' + b);
     polygon.setAttribute('points', points);
     polygon.style.fill = getColor(i);
     polygon.classList.add('stacked-polygon', 'stacked-' + (i - 1));
     let wrapEvent = event => {
       event.stackedIndex = i - 1;
+      let width = this._htmlElement.clientWidth || this._htmlElement.parentNode.clientWidth;
       let offsetX   = event.offsetX || ((event.targetTouches[0] || {pageX:0}).pageX - event.target.getBoundingClientRect().left);
-      let relativeX = (offsetX - this.padding.left)/(this._htmlElement.clientWidth - this.padding.left - this.padding.right) || 0;
+      let relativeX = (offsetX - this.padding.left)/(width - this.padding.left - this.padding.right) || 0;
       let dataIndex = Math.round(relativeX * (this.dataDimension - 1));
-      event.dataIndex   = dataIndex;
-      event.stackedData = this._data[i-1][dataIndex];
       let newEvent = new CustomEvent('stacked-' + event.type);
-      for(let prop in event) newEvent[prop] = event[prop];
+      newEvent.dataIndex   = dataIndex;
+      newEvent.stackedData = this._data[i-1][dataIndex];
+      for(let prop in event) {
+        if(typeof newEvent[prop] === 'undefined') newEvent[prop] = event[prop];
+      }
       this._htmlElement.dispatchEvent(newEvent);
     };
     // Binding events
@@ -344,7 +348,7 @@ function publicStackedGraph(stackedGraph) {
   Object.defineProperty(stackedGraph, 'data', {
     get: () => stackedGraph._data,
     set: newVal => {
-      if(!newVal.length) { stackedGraph._data = [[0, 0]]; console.log(stackedGraph._data) }
+      if(!newVal.length) stackedGraph._data = [[0, 0]];
       else stackedGraph._data = newVal;
       stackedGraph._updateDiff();
       stackedGraph.updateDrawing(true, stackedGraph.animationTiming);
@@ -378,36 +382,3 @@ function publicStackedGraph(stackedGraph) {
   CustomEvent.prototype = window.Event.prototype;
   window.CustomEvent = CustomEvent;
 })();
-
-window.addEventListener('load', event => {
-  let stackedGraph = window.stackedGraph = new StackedGraph('stacked');
-  let dataTitles = ['项目A', '项目B', '项目C'];
-  stackedGraph.updateDrawing(true, stackedGraph.animationTiming);
-
-  // let labelDOM = document.createElement('div');
-  // labelDOM.classList.add('stacked-label');
-  // labelDOM.style.position = 'fixed';
-  // let indicator = document.createElement('div');
-  // indicator.classList.add('stacked-indicator');
-  // labelDOM.appendChild(indicator);
-  // let titleDOM = document.createElement('div');
-  // titleDOM.classList.add('stacked-title');
-  // labelDOM.appendChild(titleDOM);
-  // let valueDOM = document.createElement('div');
-  // valueDOM.classList.add('stacked-value');
-  // labelDOM.appendChild(valueDOM);
-  // stackedGraph.dom.addEventListener('stacked-mouseenter', event => {
-  //   document.body.appendChild(labelDOM);
-  //   indicator.style.background = stackedGraph.getColor(event.stackedIndex);
-  // });
-  // stackedGraph.dom.addEventListener('stacked-mousemove', event => {
-  //   labelDOM.style.left = event.clientX + 10 + 'px';
-  //   labelDOM.style.top = event.clientY + 10 + 'px';
-    
-  //   titleDOM.innerHTML = dataTitles[event.stackedIndex];
-  //   valueDOM.innerHTML = event.stackedData.toFixed(2);
-  // });
-  // stackedGraph.dom.addEventListener('stacked-mouseleave', event => {
-  //   document.body.removeChild(labelDOM);
-  // });
-});

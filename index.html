@@ -2,8 +2,14 @@
 <html lang='en'>
 <head>
   <meta charset='utf-8' />
-  <title>姓名</title>
+  <title>殷叶航</title>
   <style type="text/css">
+body {
+  font-family: -apple-system, "Noto Sans", "Helvetica Neue", Helvetica, "Nimbus Sans L", Arial, "Liberation Sans", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Source Han Sans SC", "Source Han Sans CN", "Microsoft YaHei", "Wenquanyi Micro Hei", "WenQuanYi Zen Hei", "ST Heiti", SimHei, "WenQuanYi Zen Hei Sharp", sans-serif;
+}
+p {
+  padding: 0 20px;
+}
 #main {
   width: 80%;
   max-width: 800px;
@@ -11,10 +17,9 @@
   max-height: 400px;
   margin-left: auto;
   margin-right: auto;
-  font-family: -apple-system, "Noto Sans", "Helvetica Neue", Helvetica, "Nimbus Sans L", Arial, "Liberation Sans", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Source Han Sans SC", "Source Han Sans CN", "Microsoft YaHei", "Wenquanyi Micro Hei", "WenQuanYi Zen Hei", "ST Heiti", SimHei, "WenQuanYi Zen Hei Sharp", sans-serif;
 }
 .stacked-label {
-  background: #ffffffcc;
+  background: #fffffff0;
   border: solid #eeeeee 1px;
   border-radius: 10px;
   box-shadow: 0 5px 20px #00000022;
@@ -37,25 +42,174 @@
   margin-top: 5px;
   font-weight: bold;
 }
-.toggling {
-  margin: 0;
+.stacked-polygon {
+  opacity: 1;
+  transition: all 500ms;
+  stroke: white;
+  stroke-width: 4;
+  user-select: none;
+  -moz-user-select: none;
+}
+.stacked-polygon:not(:hover) {
+  opacity: 0.8;
+  transition: all 500ms;
+  stroke: white;
+  stroke-width: 0;
+  user-select: none;
+  -moz-user-select: none;
+}
+h1, h2, h3, h4, h5, h6 {
+  text-align: center;
+}
+h1 {
+  color: #0089A7;
+  font-size: 48pt;
+}
+button:not(:active) {
   outline: none;
+  color: #0089A7;
   background: white;
-  border: 1px solid #555;
+  border: solid 2px #0089A7;
+  border-radius: 10px;
+  padding: 10px;
+  margin: 5px;
+  transition: all 200ms;
+}
+button {
+  outline: none;
+  color: white;
+  background: #0089A7;
+  border: solid 2px #0089A7;
+  border-radius: 10px;
+  padding: 8px;
+  margin: 5px;
+  transition: all 200ms;
+}
+.toggle-buttons {
+  list-style-type: none;
+  display: inline-block;
+  color: #0089A7;
+}
+.toggle-buttons li:first-child label {
+  border-radius: 10px 0 0 10px;
+}
+.toggle-buttons li:last-child label {
+  border-radius: 0 10px 10px 0;
+}
+.toggle-buttons li {
+  float: left;
+  position: relative;
+}
+.toggle-buttons input[type=radio], .toggle-buttons label {
+  display: block;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+}
+.toggle-buttons input[type=radio] {
+  width: 100%;
+  height: 100%;
+  z-index: 100;
+  position: absolute;
+  opacity: 0;
+}
+.toggle-buttons label {
+  padding: 10px;
+  margin: 0 -1px;
+  z-index: 90;
+  border: solid 2px #0089A7;
+  transition: all 200ms;
+}
+.toggle-buttons input[type=radio]:checked + label {
+  background: #0089A7;
+  color: white;
+  transition: all 200ms;
 }
   </style>
 </head>
 <body>
   <!-- plz insert your doms under the main div element -->
   <div id="main">
+    <h1>Stacked Graph</h1>
+    <div style="text-align:center">混合1506 殷叶航 &nbsp; 3150104531</div>
     <svg height="100%" width="100%" id="stacked"></svg>
-    <div class="toggling-buttons">
-      <button class="toggling left" type="button">Zero</button>
-      <button class="toggling " type="button">Theme River</button>
-      <button class="toggling " type="button">Wiggle</button>
-      <button class="toggling right" type="button">Weighted Wiggle</button>
+    <p>基线函数：</p>
+    <div style="text-align:center">
+      <form class="toggle-buttons">
+        <li>
+          <input type="radio" name="baseline" value="zero" onchange="stackedGraph.baseline = this.value"/>
+          <label for="zero">Zero</label>
+        </li>
+        <li>
+          <input type="radio" name="baseline" value="theme" checked="checked" onchange="stackedGraph.baseline = this.value"/>
+          <label for="theme">Theme River</label>
+        </li>
+        <li>
+          <input type="radio" name="baseline" value="wiggle" onchange="stackedGraph.baseline = this.value"/>
+          <label for="wiggle">Wiggle</label>
+        </li>
+        <li>
+          <input type="radio" name="baseline" value="weighted" onchange="stackedGraph.baseline = this.value"/>
+          <label for="weighted">Weighted Wiggle</label>
+        </li>
+      </form>
     </div>
+    <p>随机更新数据：</p>
+    <div style="text-align:center">
+      <button onclick="updateData(false)">更新</button>
+      <button onclick="updateData(true)">变换数据长度更新</button>
+    </div>
+    <p>main.js 可以当成一个独立的库来使用，下面我会简单介绍一下如何对它编程（API）。</p>
   </div>
   <script type="text/javascript" src="main.js"></script>
+  <script>
+window.addEventListener('load', event => {
+  let stackedGraph = window.stackedGraph = new StackedGraph('stacked');
+  let dataTitles = ['项目A', '项目B', '项目C', '项目D', '项目E'];
+  stackedGraph.updateDrawing(true, stackedGraph.animationTiming);
+
+  let labelDOM = document.createElement('div');
+  labelDOM.classList.add('stacked-label');
+  labelDOM.style.position = 'fixed';
+  let indicator = document.createElement('div');
+  indicator.classList.add('stacked-indicator');
+  labelDOM.appendChild(indicator);
+  let titleDOM = document.createElement('div');
+  titleDOM.classList.add('stacked-title');
+  labelDOM.appendChild(titleDOM);
+  let valueDOM = document.createElement('div');
+  valueDOM.classList.add('stacked-value');
+  labelDOM.appendChild(valueDOM);
+  stackedGraph.dom.addEventListener('stacked-mousedown', event => {
+    document.body.appendChild(labelDOM);
+    indicator.style.background = stackedGraph.getColor(event.stackedIndex);
+  });
+  stackedGraph.dom.addEventListener('stacked-mousemove', event => {
+    labelDOM.style.left = event.clientX + 10 + 'px';
+    labelDOM.style.top = event.clientY + 10 + 'px';
+    
+    titleDOM.innerHTML = dataTitles[event.stackedIndex];
+    valueDOM.innerHTML = event.stackedData.toFixed(2);
+  });
+  stackedGraph.dom.addEventListener('stacked-mouseup', event => {
+    document.body.removeChild(labelDOM);
+  });
+  stackedGraph.dom.addEventListener('stacked-mouseout', event => {
+    try { document.body.removeChild(labelDOM); } catch(error) {}
+  });
+});
+
+// Update the data randomly
+function updateData(changeDimension) {
+  let dataLength = changeDimension? Math.ceil(Math.random() * 5) + 1 : 3;
+  let dataDimension = changeDimension? Math.ceil(Math.random() * 100) + 10 : 50;
+  let data = new Array(dataLength).fill(null).map(arr => new Array(dataDimension).fill(null).map(val => Math.random() * 2 - 1));
+
+  data.forEach(arr => {
+    arr.forEach((val, i, arr) => arr[i] = val + (arr[i - 1] || val) + (arr[i + 1] || val));
+    arr.forEach((val, i, arr) => arr[i] = Math.abs(val));
+  });
+  stackedGraph.data = data;
+}
+  </script>
 </body>
 </html>
