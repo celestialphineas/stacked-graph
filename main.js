@@ -1,3 +1,4 @@
+'use strict';
 /**
  * Simply draw a stacked graph
  * @class
@@ -169,7 +170,9 @@ StackedGraph.prototype.updateDrawing = function (animated, timing) {
  * @param { number[] } xy   Local coordinate
  */
 StackedGraph.prototype.local2global = function (xy) {
-  let [ w, h ] = [ this._htmlElement.clientWidth, this._htmlElement.clientHeight ];
+  let [ w, h ] = [
+    this._htmlElement.clientWidth || this._htmlElement.parentNode.clientWidth,
+    this._htmlElement.clientHeight || this._htmlElement.parentNode.clientHeight ];
   let [ l, r, t, b ] = [ this.padding.left, this.padding.right, this.padding.top, this.padding.bottom ];
   let [ x, y ] = xy;
   return [ x*(w-r-l)+l, y*(-h+2*t+b)+h-t-b ];
@@ -180,7 +183,9 @@ StackedGraph.prototype.local2global = function (xy) {
  * @param { number[] } xy   Global coordinate
  */
 StackedGraph.prototype.global2local = function (xy) {
-  let [ w, h ] = [ this._htmlElement.clientWidth, this._htmlElement.clientHeight ];
+  let [ w, h ] = [
+    this._htmlElement.clientWidth || this._htmlElement.parentNode.clientWidth,
+    this._htmlElement.clientHeight || this._htmlElement.parentNode.clientHeight ];
   let [ l, r, t, b ] = [ this.padding.left, this.padding.right, this.padding.top, this.padding.bottom ];
   let [ x, y ] = xy;
   return [ (x-l)/(w-r-l) || 0, (y-h+t+b)/(-h+2*t+b) || 0 ];
@@ -214,14 +219,16 @@ StackedGraph.prototype.weightedWiggle = function(index) {
   }
   return dg0.slice(0, index + 1).reduce((a, b) => a + b);
 }
-
+StackedGraph.prototype.getColor = function(index) {
+  return this.colors[ index % this.colors.length ] || '#000000';
+}
 /** Update the drawing */
 StackedGraph.prototype.drawStacked = function() {
   // Remove the drawn elements
   this.stackedGraphDOMs.forEach(element => this._htmlElement.removeChild(element));
   this.stackedGraphDOMs.splice(0, this.stackedGraphDOMs.length);
   
-  let getColor = index => this.colors[ (index - 1) % this.colors.length ] || '#000000';
+  let getColor = index => this.getColor(index-1);
   // Draw the data to draw
   for(let i = 1; i < this._dataToDraw.length; i++) {
     let polygon = document.createElementNS(this.svgns, 'polygon');
@@ -233,14 +240,14 @@ StackedGraph.prototype.drawStacked = function() {
     polygon.style.fill = getColor(i);
     polygon.classList.add('stacked-polygon', 'stacked-' + (i - 1));
     let wrapEvent = event => {
-      let detail = event;
       event.stackedIndex = i - 1;
-      let clientX   = event.clientX || event.touches[0].clientX;
-      let relativeX = (clientX - this.padding.left)/(this._htmlElement.clientWidth - this.padding.left - this.padding.right) || 0;
+      let offsetX   = event.offsetX || ((event.targetTouches[0] || {pageX:0}).pageX - event.target.getBoundingClientRect().left);
+      let relativeX = (offsetX - this.padding.left)/(this._htmlElement.clientWidth - this.padding.left - this.padding.right) || 0;
       let dataIndex = Math.round(relativeX * (this.dataDimension - 1));
       event.dataIndex   = dataIndex;
       event.stackedData = this._data[i-1][dataIndex];
-      let newEvent = new CustomEvent('stacked-' + event.type, { detail });
+      let newEvent = new CustomEvent('stacked-' + event.type);
+      for(let prop in event) newEvent[prop] = event[prop];
       this._htmlElement.dispatchEvent(newEvent);
     };
     // Binding events
@@ -260,12 +267,14 @@ function makeHorizontalAxis(stackedGraph) {
   let _this = stackedGraph;
   // Horizontal axis line
   _this.horizontalAxis = document.createElementNS(_this.svgns, 'line');
+  let width  = _this._htmlElement.clientWidth  || _this._htmlElement.parentNode.clientWidth;
+  let height = _this._htmlElement.clientHeight || _this._htmlElement.parentNode.clientHeight;
   // Resize behavior
   _this.horizontalAxis.resize = () => {
     _this.horizontalAxis.setAttribute('x1', _this.padding.left);
-    _this.horizontalAxis.setAttribute('x2', _this._htmlElement.clientWidth - _this.padding.right);
-    _this.horizontalAxis.setAttribute('y1', _this._htmlElement.clientHeight - _this.padding.bottom);
-    _this.horizontalAxis.setAttribute('y2', _this._htmlElement.clientHeight - _this.padding.bottom);
+    _this.horizontalAxis.setAttribute('x2', width - _this.padding.right);
+    _this.horizontalAxis.setAttribute('y1', height - _this.padding.bottom);
+    _this.horizontalAxis.setAttribute('y2', height - _this.padding.bottom);
   }
   _this.horizontalAxis.style.stroke = '#aaaaaa';
   _this.horizontalAxis.style.strokeWidth = '1px';
@@ -282,7 +291,6 @@ function makeHorizontalAxis(stackedGraph) {
     _this.horizontalGrads.splice(0, _this.horizontalGrads.length);
     _this.horizontalGradTags.splice(0, _this.horizontalGradTags.length);
     let [ left, right, bottom ] = [ _this.padding.left, _this.padding.right, _this.padding.bottom ];
-    let [ width, height ] = [ _this._htmlElement.clientWidth, _this._htmlElement.clientHeight ];
     let n = Math.ceil((width - left - right)/_this.gradSpacing || 0);
     let step = Math.ceil(_this.dataDimension/n || 0);
     if(_this.dataDimension > 500) {
@@ -327,6 +335,9 @@ function bindResizeBehaviors(stackedGraph) {
 
 // This function defines the public getter/setter of the class
 function publicStackedGraph(stackedGraph) {
+  Object.defineProperty(stackedGraph, 'dom', {
+    get: () => stackedGraph._htmlElement
+  });
   Object.defineProperty(stackedGraph, 'htmlElement', {
     get: () => stackedGraph._htmlElement
   });
@@ -370,5 +381,33 @@ function publicStackedGraph(stackedGraph) {
 
 window.addEventListener('load', event => {
   let stackedGraph = window.stackedGraph = new StackedGraph('stacked');
+  let dataTitles = ['项目A', '项目B', '项目C'];
   stackedGraph.updateDrawing(true, stackedGraph.animationTiming);
+
+  // let labelDOM = document.createElement('div');
+  // labelDOM.classList.add('stacked-label');
+  // labelDOM.style.position = 'fixed';
+  // let indicator = document.createElement('div');
+  // indicator.classList.add('stacked-indicator');
+  // labelDOM.appendChild(indicator);
+  // let titleDOM = document.createElement('div');
+  // titleDOM.classList.add('stacked-title');
+  // labelDOM.appendChild(titleDOM);
+  // let valueDOM = document.createElement('div');
+  // valueDOM.classList.add('stacked-value');
+  // labelDOM.appendChild(valueDOM);
+  // stackedGraph.dom.addEventListener('stacked-mouseenter', event => {
+  //   document.body.appendChild(labelDOM);
+  //   indicator.style.background = stackedGraph.getColor(event.stackedIndex);
+  // });
+  // stackedGraph.dom.addEventListener('stacked-mousemove', event => {
+  //   labelDOM.style.left = event.clientX + 10 + 'px';
+  //   labelDOM.style.top = event.clientY + 10 + 'px';
+    
+  //   titleDOM.innerHTML = dataTitles[event.stackedIndex];
+  //   valueDOM.innerHTML = event.stackedData.toFixed(2);
+  // });
+  // stackedGraph.dom.addEventListener('stacked-mouseleave', event => {
+  //   document.body.removeChild(labelDOM);
+  // });
 });
