@@ -191,7 +191,7 @@ window.addEventListener('load', event => {
     valueDOM.innerHTML = event.stackedData.toFixed(2);
   });
   stackedGraph.dom.addEventListener('stacked-mouseup', event => {
-    document.body.removeChild(labelDOM);
+    try { document.body.removeChild(labelDOM); } catch(error) {}
   });
   stackedGraph.dom.addEventListener('stacked-mouseout', event => {
     try { document.body.removeChild(labelDOM); } catch(error) {}
