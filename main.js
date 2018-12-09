@@ -1,3 +1,7 @@
+/** Stacked Graph
+ * A minimal stacked graph wheel without any dependency.
+ * @author Celestial Phineas @ ZJU (Yehang Yin, hanghang0713 [AT] hotmail [DOT] com)
+ */
 'use strict';
 /**
  * Simply draw a stacked graph

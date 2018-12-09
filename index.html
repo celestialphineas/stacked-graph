@@ -142,6 +142,7 @@ button {
 <body>
   <!-- plz insert your doms under the main div element -->
   <div id="main">
+    <a href="https://github.com/celphi-misc/stacked-graph/"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png" alt="Fork me on GitHub"></a>
     <h1>Stacked Graph</h1>
     <div style="text-align:center">混合1506 殷叶航 &nbsp; 3150104531</div>
     <svg height="400px" width="100%" id="stacked"></svg>
@@ -173,7 +174,7 @@ button {
       <button onclick="updateData(true)">变换数据长度更新</button>
     </div>
     <p>main.js 可以当成一个独立的库来使用，下面我会简单介绍一下它的接口。</p>
-    <h2>API Reference</h2>
+    <h2>API</h2>
     <h3>构造器</h3>
     <p class="code">let stackedGraph = new StackedGraph('element-id' | svgElement: SVGElement);</p>
     <p>构造器会在指定的 <span class="code">&lt;svg&gt;</span> 元素上构造一个默认的 <span class="code">StackedGraph</span> 对象。</p>
@@ -221,6 +222,8 @@ stackedGraph.dom.addEventListener('stacked-mousemove', event => {<br>
     </ul>
     <h3>其他</h3>
     <p>这个 HTML 文档就是对 <span class="code">main.js</span> 的使用范例。下面包含有一小段初始化代码可供参考。</p>
+    <h2>Reference</h2>
+    <p>Stacked Graphs – Geometry & Aesthetics, Lee Byron & Martin Wattenberg</p>
   </div>
   <script type="text/javascript" src="main.js"></script>
   <script>
