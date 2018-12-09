@@ -71,9 +71,9 @@ function StackedGraph(htmlElement) {
         }
       });
 
-      this._dataToDraw.forEach(arr => {
-        arr.forEach((coord, i, arr) => coord[0] = i/(arr.length-1) || 0);
-      });
+      // this._dataToDraw.forEach(arr => {
+      //   arr.forEach((coord, i, arr) => coord[0] = i/(arr.length-1) || 0);
+      // });
       
       self.fromData = this._dataToDraw;
     }
@@ -97,7 +97,7 @@ function StackedGraph(htmlElement) {
         let destY = j < m ? self.dest[i][j][1] : self.dest[i][m-1][1];
         return [ x * (1-progress) + destX * progress, y * (1-progress) + destY * progress ];
       });
-    })
+    });
 
     if(nowTimestamp - self.startTimestamp <= self.timing) {
       setTimeout(this._animatedUpdate, 20);
@@ -348,8 +348,17 @@ function publicStackedGraph(stackedGraph) {
   Object.defineProperty(stackedGraph, 'data', {
     get: () => stackedGraph._data,
     set: newVal => {
-      if(!newVal.length) stackedGraph._data = [[0, 0]];
-      else stackedGraph._data = newVal;
+      // Check data validity
+      if(!newVal.length) newVal = [[0, 0]];
+      let validator = newVal.map(
+        arr => [ arr.map(val => typeof val === 'number' ? 1 : 0).reduce((a, b) => a + b), arr.length ]);
+      for(let i = 0; i < validator.length - 1; i++) {
+        if(validator[i][0] !== validator[i+1][0] || validator[i][1] !== validator[i+1][1]) {
+          console.warn('Invalid stacked graph data.');
+          return;
+        }
+      }
+      stackedGraph._data = newVal;
       stackedGraph._updateDiff();
       stackedGraph.updateDrawing(true, stackedGraph.animationTiming);
     }

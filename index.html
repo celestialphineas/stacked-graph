@@ -9,14 +9,17 @@ body {
 }
 p {
   padding: 0 20px;
+  line-height: 1.8em;
+}
+.code {
+  font-family: 'Consolas', 'Menlo', 'Monaco', 'Lucida Console', 'Liberation Mono', 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace, sans-serif;
 }
 #main {
   width: 80%;
   max-width: 800px;
-  height: 60vh;
-  max-height: 400px;
   margin-left: auto;
   margin-right: auto;
+  padding: 5% 0;
 }
 .stacked-label {
   background: #fffffff0;
@@ -60,10 +63,20 @@ p {
 }
 h1, h2, h3, h4, h5, h6 {
   text-align: center;
+  color: #0089A7;
 }
 h1 {
-  color: #0089A7;
   font-size: 48pt;
+}
+h3 {
+  text-align: left;
+  padding: 0 20px;
+}
+.warn {
+  background: #ffeeaa;
+  padding: 5px 15px;
+  border: solid 1px #ddbb88;
+  border-radius: 10px;
 }
 button:not(:active) {
   outline: none;
@@ -131,7 +144,8 @@ button {
   <div id="main">
     <h1>Stacked Graph</h1>
     <div style="text-align:center">混合1506 殷叶航 &nbsp; 3150104531</div>
-    <svg height="100%" width="100%" id="stacked"></svg>
+    <svg height="400px" width="100%" id="stacked"></svg>
+    <p>提示：在图表上悬浮鼠标指针或长按来交互。</p>
     <p>基线函数：</p>
     <div style="text-align:center">
       <form class="toggle-buttons">
@@ -159,6 +173,54 @@ button {
       <button onclick="updateData(true)">变换数据长度更新</button>
     </div>
     <p>main.js 可以当成一个独立的库来使用，下面我会简单介绍一下它的接口。</p>
+    <h2>API Reference</h2>
+    <h3>构造器</h3>
+    <p class="code">let stackedGraph = new StackedGraph('element-id' | svgElement: SVGElement);</p>
+    <p>构造器会在指定的 <span class="code">&lt;svg&gt;</span> 元素上构造一个默认的 <span class="code">StackedGraph</span> 对象。</p>
+    <h3>显示数据</h3>
+    <p class="code">stackedGraph.updateDrawing(animated: boolean, animationTiming: number);</p>
+    <p>该函数会刷新堆叠图的显示，当用户还没有指定堆叠图数据时，会采用默认数据。该函数第一个参数是一个 <span>boolean</span> 为是否启用动画，第二个参数为动画的时间，单位为毫秒。</p>
+    <h3>更新数据</h3>
+    <p class="code">stackedGraph.data = [[1, 2, 1, 3, 5, 2], [2, 3, 5, 7, 8, 3], ...]</p>
+    <p>每组数据都是一个数列，且要求每个数列长度均相等。数据变更会自动以动画刷新呈现。</p>
+    <p class="code">stackedGraph.animationTiming = 1000;</p>
+    <p>以毫秒数设定默认动画的时间。</p>
+    <h3>改变颜色</h3>
+    <p class="code">stackedGraph.colors = [ '#0089A7', '#3AA8C0', '#49D5EE', '#00748D' ];</p>
+    <p>通过改变数组来改变配色方案。数据组的颜色会在这个数组中循环。</p>
+    <p class="warn">注意：更改配色并不会立即刷新，你需要手动调用 <span class="code">updateDrawing</span> 来刷新。</p>
+    <h3>坐标映射</h3>
+    <p>在这一可视化工具的设计中，每组数据只允许以一位数组的方式输入。如果需要改编横坐标的映射关系（不是从0开始，或是横坐标的含义非连续的度量值），可以通过修改下面这个函数来做到：</p>
+    <p class="code">stackedGraph.tagMapping = index => '' + index;</p>
+    <p>上面是横坐标映射的默认行为，即将数组编号作为横坐标。下面一个事例改写了这个函数：</p>
+    <p class="code">stackedGraph.tagMapping = index => index * 2 + 2 + '';</p>
+    <p>它的行为是，将横坐标映射从数组索引调整为 2, 4, 6, 8</p>
+    <p class="warn">注意：更改坐标映射并不会立即刷新，你需要手动调用 <span class="code">updateDrawing</span> 来刷新。</p>
+    <h3>基线函数</h3>
+    <p>这个库提供了常见几种基线函数，包括零函数、Theme River、Wiggle 和加权 Wiggle 四种。你可以通过下面这种方式更改，每次更改后画面会自动刷新：</p>
+    <p class="code">stackedGraph.baseline = 'zero' | 'theme' | 'wiggle' | 'weighted';</p>
+    <h3>事件机制</h3>
+    <p>这个库并没有提供原生的显示数据标签和鼠标交互的功能，尽管这意味着使用者需要自己手工编程来实现这一功能，但也意味着实现可以更加灵活和自由。事件机制的策略是：画面元素接受了一个鼠标/触摸事件，计算这个事件相关的堆叠图属性，例如是哪组数据被单击、光标现在在数组的哪个下标等。然后用一个自定义事件包裹之前的事件，并加入这些属性，再从根 <span class="code">&lt;svg&gt;</span> DOM 元素 <span class="code">stackedGraph.dom</span> 发射这一事件。你只需要从根 DOM 监听这一事件就可以了。</p>
+    <p>支持的事件有：<span class="code">'mousedown', 'mouseenter', 'mouseleave', 'mousemove', 'mouseout',  'mouseover', 'mouseup', 'mousewheel', 'touchstart', 'touchend', 'touchcancel', 'touchmove'</span></p>
+    <p>被包裹后的事件会以 <span class="code">stacked-xxx</span> 形式命名，从根 <span class="code">&lt;svg&gt;</span> DOM 发射出去。</p>
+    <p>下面的实例将展示这一事件机制的使用方式，以及所支持访问的成员：</p>
+    <p class="code">
+stackedGraph.dom.addEventListener('stacked-mousemove', event => {<br>
+&nbsp;&nbsp;console.log(event.stackedIndex); &nbsp; // 数据组编号<br>
+&nbsp;&nbsp;console.log(event.dataIndex); &nbsp;&nbsp;&nbsp;&nbsp; // 光标所在数组下标<br>
+&nbsp;&nbsp;console.log(stakcedGraph.tagMapping(event.dataIndex));
+&nbsp;&nbsp;console.log(event.stackedData); &nbsp;&nbsp; // 光标下数据<br>
+});
+    </p>
+    <h3>使用 CSS</h3>
+    <p>你可以通过 DOM 的类去选取堆叠图中的元素，设置其样式。部分样式是在 JavaScript 代码中以内联方式指定的样式，如果需要更改，请在 CSS 中使用 <span class="code">!important</span> 声明。</p>
+    <ul style="line-height:1.8em">
+      <li>横坐标轴线具有类 <span class="code">stacked-h-axis</span></li>
+      <li>横坐标刻度具有类 <span class="code">stacked-h-grad</span></li>
+      <li>堆叠图多边形具有类 <span class="code">stacked-polygon</span>，同时具有组编号 <span class="code">stacked-x</span> 其中 <span class="code">x</span> 可能是 <span class="code">1, 2, 3...</span></li>
+    </ul>
+    <h3>其他</h3>
+    <p>这个 HTML 文档就是对 <span class="code">main.js</span> 的使用范例。下面包含有一小段初始化代码可供参考。</p>
   </div>
   <script type="text/javascript" src="main.js"></script>
   <script>
@@ -190,12 +252,12 @@ window.addEventListener('load', event => {
     titleDOM.innerHTML = dataTitles[event.stackedIndex];
     valueDOM.innerHTML = event.stackedData.toFixed(2);
   });
-  stackedGraph.dom.addEventListener('stacked-mouseup', event => {
+  document.addEventListener('mouseup', event => {
     try { document.body.removeChild(labelDOM); } catch(error) {}
   });
-  stackedGraph.dom.addEventListener('stacked-mouseout', event => {
-    try { document.body.removeChild(labelDOM); } catch(error) {}
-  });
+  // stackedGraph.dom.addEventListener('stacked-mouseout', event => {
+  //   try { document.body.removeChild(labelDOM); } catch(error) {}
+  // });
 });
 
 // Update the data randomly
